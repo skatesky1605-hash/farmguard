@@ -1,0 +1,2644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FarmGuard — Smart Farming Guidance & Decision-Support Platform</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            agri: {
+              950: '#0c2217',
+              900: '#1b4332',
+              800: '#2d6a4f',
+              700: '#40916c',
+              600: '#52b788',
+              500: '#74c69d',
+              200: '#b7e4c7',
+              100: '#d8f3dc',
+              50: '#f2fbf5',
+            },
+            sun: {
+              400: '#f4a261',
+              500: '#e9c46a',
+              600: '#d4a373',
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            heading: ['Outfit', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- React 18 & ReactDOM 18 ESM -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  
+  <!-- Babel for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Chart.js for Analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Leaflet CSS & JS for Farm Location Picker -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    /* Custom styles */
+    body {
+      background-color: #f8faf9;
+      color: #1f2937;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    h1, h2, h3, h4, .font-heading {
+      font-family: 'Outfit', sans-serif;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    .leaflet-container {
+      z-index: 10 !important;
+      border-radius: 0.75rem;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 antialiased selection:bg-agri-200 selection:text-agri-900">
+  <div id="root"></div>
+
+  <!-- Application Script -->
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef } = React;
+
+    // ==========================================
+    // 1. BRANDING LOGO COMPONENT
+    // Double Leaf / Natural Growth concept with sun accent
+    // ==========================================
+    const FarmGuardLogo = ({ size = "md", className = "" }) => {
+      const dimensions = {
+        sm: { icon: "w-7 h-7", text: "text-lg", sub: "text-[10px]" },
+        md: { icon: "w-9 h-9", text: "text-xl", sub: "text-xs" },
+        lg: { icon: "w-12 h-12", text: "text-2xl", sub: "text-sm" },
+      }[size] || { icon: "w-9 h-9", text: "text-xl", sub: "text-xs" };
+
+      return (
+        <div class={`flex items-center gap-2.5 font-heading font-bold ${className}`}>
+          <div class={`relative flex items-center justify-center shrink-0 ${dimensions.icon}`}>
+            <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-sm">
+              {/* Sun Accent */}
+              <circle cx="74" cy="26" r="14" fill="#e9c46a" />
+              <circle cx="74" cy="26" r="19" fill="#e9c46a" opacity="0.25" />
+              
+              {/* Primary Dark Leaf */}
+              <path 
+                d="M 20 80 C 20 35, 45 15, 80 15 C 80 60, 55 80, 20 80 Z" 
+                fill="#1b4332" 
+              />
+              <path 
+                d="M 20 80 Q 45 50 80 15" 
+                stroke="#52b788" 
+                strokeWidth="4" 
+                strokeLinecap="round" 
+                fill="none" 
+              />
+              
+              {/* Secondary Fresh Leaf */}
+              <path 
+                d="M 12 84 C 12 48, 32 30, 60 30 C 60 65, 40 84, 12 84 Z" 
+                fill="#40916c" 
+                opacity="0.9"
+              />
+              <path 
+                d="M 12 84 Q 32 60 60 30" 
+                stroke="#b7e4c7" 
+                strokeWidth="3" 
+                strokeLinecap="round" 
+                fill="none" 
+              />
+            </svg>
+          </div>
+          <div class="flex flex-col leading-tight">
+            <span class={`tracking-tight text-agri-900 ${dimensions.text}`}>
+              Farm<span class="text-agri-800 font-extrabold">Guard</span>
+            </span>
+            <span class={`font-semibold tracking-wider uppercase text-agri-700 ${dimensions.sub}`}>
+              Smart Farming
+            </span>
+          </div>
+        </div>
+      );
+    };
+
+    // ==========================================
+    // 2. PERSISTENT STORAGE ENGINE
+    // Real User Data Isolation (No Hardcoded Demo User)
+    // ==========================================
+    const STORAGE_KEY = "farmguard_app_db_v2";
+
+    const getInitialStorage = () => {
+      try {
+        const item = localStorage.getItem(STORAGE_KEY);
+        if (item) return JSON.parse(item);
+      } catch (e) {
+        console.error("Failed to load local storage", e);
+      }
+      return {
+        session: { currentUserId: null },
+        users: [],
+        farms: [],
+        crops: [],
+        fertilizers: [],
+        financials: [],
+        alerts: [],
+        settings: {}
+      };
+    };
+
+    const saveStorage = (data) => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {
+        console.error("Failed to save to local storage", e);
+      }
+    };
+
+    // Helper functions for DB actions
+    const db = {
+      get: getInitialStorage,
+      set: saveStorage,
+      
+      getCurrentUser: () => {
+        const data = getInitialStorage();
+        if (!data.session?.currentUserId) return null;
+        return data.users.find(u => u.id === data.session.currentUserId) || null;
+      },
+      
+      getUserFarm: (userId) => {
+        const data = getInitialStorage();
+        return data.farms.find(f => f.userId === userId) || null;
+      },
+      
+      getUserCrops: (userId) => {
+        const data = getInitialStorage();
+        return data.crops.filter(c => c.userId === userId);
+      },
+
+      getUserFertilizers: (userId, cropId = null) => {
+        const data = getInitialStorage();
+        return data.fertilizers.filter(f => f.userId === userId && (!cropId || f.cropId === cropId));
+      },
+
+      getUserFinancials: (userId) => {
+        const data = getInitialStorage();
+        return data.financials.filter(f => f.userId === userId);
+      },
+
+      getUserAlerts: (userId, cropId = null) => {
+        const data = getInitialStorage();
+        return data.alerts.filter(a => a.userId === userId && (!cropId || a.cropId === cropId));
+      }
+    };
+
+    // ==========================================
+    // 3. CROP KNOWLEDGE BASE & SEARCH ENGINE
+    // ==========================================
+    const CROP_DATABASE = [
+      {
+        id: "rice",
+        name: "Rice (Paddy)",
+        variety: "Basmati / Swarna / IR64",
+        soil: "Clay loam, Heavy clay, Alluvial soil",
+        temp: "20°C - 38°C",
+        season: "Kharif (June - Nov)",
+        waterReq: "High (1200 - 1500 mm)",
+        irrigationMethod: "Flood / Alternate Wetting & Drying",
+        duration: "120 - 150 days",
+        estCostPerAcre: 18000,
+        marketDemand: "High",
+        demandTrend: "Stable / Rising",
+        avgMarketPrice: 2450, // per quintal
+        unit: "Quintal",
+        risks: "Brown Plant Hopper, Blast disease, Stem Borer, Submergence",
+        tips: "Maintain 2-5cm standing water during tillering stage. Apply Nitrogen in split doses."
+      },
+      {
+        id: "tomato",
+        name: "Tomato",
+        variety: "Arka Rakshak / Pusa Ruby / Hybrid",
+        soil: "Well-drained sandy loam to clay loam",
+        temp: "18°C - 30°C",
+        season: "Rabi & Kharif",
+        waterReq: "Medium (600 - 800 mm)",
+        irrigationMethod: "Drip Irrigation",
+        duration: "90 - 120 days",
+        estCostPerAcre: 35000,
+        marketDemand: "Very High",
+        demandTrend: "High Volatility",
+        avgMarketPrice: 3200, // per quintal
+        unit: "Quintal",
+        risks: "Early & Late Blight, Tomato Yellow Leaf Curl Virus, Fruit Borer",
+        tips: "Mulching helps retain soil moisture. Avoid overhead irrigation to prevent fungal growth."
+      },
+      {
+        id: "maize",
+        name: "Maize (Corn)",
+        variety: "HQPM-1 / DHM-117 / Sweet Corn",
+        soil: "Deep fertile well-drained loamy soil",
+        temp: "18°C - 32°C",
+        season: "Kharif & Rabi",
+        waterReq: "Medium (500 - 700 mm)",
+        irrigationMethod: "Furrow / Drip",
+        duration: "90 - 110 days",
+        estCostPerAcre: 15000,
+        marketDemand: "High",
+        demandTrend: "Steady Growth",
+        avgMarketPrice: 2150,
+        unit: "Quintal",
+        risks: "Fall Armyworm, Turcicum Leaf Blight, Charcoal Rot",
+        tips: "Critical water requirement during knee-high stage and silking phase."
+      },
+      {
+        id: "wheat",
+        name: "Wheat",
+        variety: "HD-2967 / PBW-343 / DBW-187",
+        soil: "Well-drained clay loams and loams",
+        temp: "10°C - 25°C",
+        season: "Rabi (Nov - April)",
+        waterReq: "Medium (450 - 650 mm)",
+        irrigationMethod: "Border Strip / Sprinkler",
+        duration: "115 - 135 days",
+        estCostPerAcre: 14000,
+        marketDemand: "High (Government MSP)",
+        demandTrend: "Stable",
+        avgMarketPrice: 2275,
+        unit: "Quintal",
+        risks: "Yellow Rust, Karnal Bunt, Aphids",
+        tips: "Crown root initiation (CRI) stage at 21 days is the most crucial for irrigation."
+      },
+      {
+        id: "cotton",
+        name: "Cotton",
+        variety: "Bt Cotton / RCH-2 / Bunny",
+        soil: "Deep black cotton soil, Alluvial loam",
+        temp: "21°C - 35°C",
+        season: "Kharif (May - Nov)",
+        waterReq: "Medium-High (700 - 1000 mm)",
+        irrigationMethod: "Drip / Alternate Furrow",
+        duration: "160 - 180 days",
+        estCostPerAcre: 28000,
+        marketDemand: "High",
+        demandTrend: "Export Dependent",
+        avgMarketPrice: 6850,
+        unit: "Quintal",
+        risks: "Pink Bollworm, Whitefly, Leaf Curl Virus",
+        tips: "Pheromone traps are recommended for monitoring pink bollworm moths."
+      },
+      {
+        id: "potato",
+        name: "Potato",
+        variety: "Kufri Jyoti / Kufri Pukhraj / Chipsona",
+        soil: "Loose, well-drained sandy loam",
+        temp: "15°C - 24°C",
+        season: "Rabi (Oct - Feb)",
+        waterReq: "Medium (500 - 600 mm)",
+        irrigationMethod: "Sprinkler / Drip",
+        duration: "80 - 100 days",
+        estCostPerAcre: 32000,
+        marketDemand: "High",
+        demandTrend: "Strong",
+        avgMarketPrice: 1850,
+        unit: "Quintal",
+        risks: "Late Blight, Bacterial Wilt, Potato Tuber Moth",
+        tips: "Earthing up should be done 30 days after planting to prevent tuber exposure to sunlight."
+      },
+      {
+        id: "onion",
+        name: "Onion",
+        variety: "N-53 / Bhima Super / Agrifound Light Red",
+        soil: "Friable sandy loam with good organic matter",
+        temp: "13°C - 35°C",
+        season: "Kharif & Rabi",
+        waterReq: "Medium (400 - 550 mm)",
+        irrigationMethod: "Drip / Micro-Sprinkler",
+        duration: "100 - 140 days",
+        estCostPerAcre: 26000,
+        marketDemand: "Very High",
+        demandTrend: "Volatile",
+        avgMarketPrice: 2800,
+        unit: "Quintal",
+        risks: "Purple Blotch, Thrips, Stem & Tuber Rot",
+        tips: "Stop irrigation 10-15 days before harvest to allow proper bulb curing."
+      },
+      {
+        id: "groundnut",
+        name: "Groundnut (Peanut)",
+        variety: "Kadiri-6 / TG-37A / JL-24",
+        soil: "Well-drained light sandy loam",
+        temp: "22°C - 33°C",
+        season: "Kharif & Summer",
+        waterReq: "Medium (450 - 600 mm)",
+        irrigationMethod: "Sprinkler / Check Basin",
+        duration: "105 - 125 days",
+        estCostPerAcre: 16500,
+        marketDemand: "High",
+        demandTrend: "Rising",
+        avgMarketPrice: 6200,
+        unit: "Quintal",
+        risks: "Tikka Leaf Spot, Collar Rot, White Grub",
+        tips: "Gypsum application at pegging stage improves pod development and kernel filling."
+      }
+    ];
+
+    // ==========================================
+    // 4. RULE-BASED IRRIGATION DECISION ENGINE
+    // ==========================================
+    const calculateIrrigationDecision = ({
+      soilMoisture = 30,
+      recentRain = 0,
+      forecastRain = 0,
+      cropName = "Rice",
+      growthStage = "Vegetative",
+      temperature = 28
+    }) => {
+      let targetMoisture = 35;
+      const lowerCrop = cropName.toLowerCase();
+      
+      if (lowerCrop.includes("rice")) targetMoisture = 45;
+      else if (lowerCrop.includes("tomato")) targetMoisture = 32;
+      else if (lowerCrop.includes("maize") || lowerCrop.includes("corn")) targetMoisture = 28;
+      else if (lowerCrop.includes("wheat")) targetMoisture = 26;
+      else if (lowerCrop.includes("potato") || lowerCrop.includes("onion")) targetMoisture = 30;
+
+      // Stage adjustment
+      if (growthStage.toLowerCase().includes("flowering") || growthStage.toLowerCase().includes("yield")) {
+        targetMoisture += 5;
+      }
+
+      const factors = [
+        { label: "Current Soil Moisture", value: `${soilMoisture}%`, status: soilMoisture < targetMoisture ? "Low" : "Optimal" },
+        { label: "24h Rain Forecast", value: `${forecastRain} mm`, status: forecastRain > 8 ? "Heavy Rain Expected" : "Minimal Rain" },
+        { label: "Recent Rain (24h)", value: `${recentRain} mm` },
+        { label: "Crop Target Moisture", value: `${targetMoisture}%` },
+        { label: "Ambient Temperature", value: `${temperature}°C` }
+      ];
+
+      // Decision rules
+      if (forecastRain >= 12) {
+        return {
+          status: "DELAY IRRIGATION",
+          color: "bg-amber-100 text-amber-800 border-amber-300",
+          icon: "cloud-rain",
+          reason: `Rain forecast predicts ${forecastRain} mm of rainfall in the next 24 hours. Natural precipitation will adequately recharge soil moisture.`,
+          factors
+        };
+      }
+
+      if (soilMoisture < (targetMoisture - 5) && forecastRain < 5) {
+        return {
+          status: "IRRIGATION REQUIRED",
+          color: "bg-emerald-100 text-emerald-800 border-emerald-300",
+          icon: "droplets",
+          reason: `Current soil moisture (${soilMoisture}%) is below the target threshold of ${targetMoisture}% for ${cropName} (${growthStage} stage), with negligible rainfall expected.`,
+          factors
+        };
+      }
+
+      if (soilMoisture >= targetMoisture + 8) {
+        return {
+          status: "NO IRRIGATION REQUIRED",
+          color: "bg-blue-100 text-blue-800 border-blue-300",
+          icon: "check-circle-2",
+          reason: `Soil moisture (${soilMoisture}%) is at an optimal level above the ${targetMoisture}% requirement for ${cropName}.`,
+          factors
+        };
+      }
+
+      return {
+        status: "MONITOR",
+        color: "bg-sky-100 text-sky-800 border-sky-300",
+        icon: "eye",
+        reason: `Soil moisture (${soilMoisture}%) is near the threshold of ${targetMoisture}%. Monitor moisture levels over the next 12 hours before watering.`,
+        factors
+      };
+    };
+
+    // ==========================================
+    // 5. LANDING PAGE COMPONENT
+    // ==========================================
+    const LandingPage = ({ onNavigate }) => {
+      return (
+        <div class="min-h-screen bg-slate-50 flex flex-col">
+          {/* Header */}
+          <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+              <FarmGuardLogo size="md" />
+              <div class="flex items-center gap-3">
+                <button 
+                  onClick={() => onNavigate("login")}
+                  class="px-5 py-2.5 rounded-xl font-medium text-slate-700 hover:text-agri-900 hover:bg-slate-100 transition-colors"
+                >
+                  Log In
+                </button>
+                <button 
+                  onClick={() => onNavigate("signup")}
+                  class="px-5 py-2.5 rounded-xl font-medium text-white bg-agri-800 hover:bg-agri-900 transition-all shadow-sm shadow-agri-800/20"
+                >
+                  Create Account
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {/* Hero Section */}
+          <main class="flex-1">
+            <section class="relative py-16 lg:py-24 bg-gradient-to-b from-white to-slate-50 overflow-hidden">
+              <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+                  
+                  {/* Left Column Text */}
+                  <div class="lg:col-span-7 space-y-6 text-center lg:text-left">
+                    <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-agri-100 border border-agri-200 text-agri-900 text-xs sm:text-sm font-semibold">
+                      <span class="w-2 h-2 rounded-full bg-agri-600 animate-pulse"></span>
+                      Smart Farming Guidance & Decision-Support Platform
+                    </div>
+                    <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 tracking-tight leading-tight">
+                      Empowering Farmers with <span class="text-agri-800">Precision Intelligence</span>
+                    </h1>
+                    <p class="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto lg:mx-0 font-normal leading-relaxed">
+                      FarmGuard enables you to track crop growth, optimize irrigation, manage fertilizers, analyze weather impacts, and make data-driven decisions to maximize yield and profitability.
+                    </p>
+                    <div class="pt-4 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                      <button 
+                        onClick={() => onNavigate("signup")}
+                        class="px-8 py-4 rounded-xl font-semibold text-white bg-agri-800 hover:bg-agri-900 transition-all shadow-lg shadow-agri-900/20 text-base flex items-center justify-center gap-2"
+                      >
+                        Get Started Free
+                        <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                      </button>
+                      <button 
+                        onClick={() => onNavigate("login")}
+                        class="px-8 py-4 rounded-xl font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 transition-all text-base shadow-sm"
+                      >
+                        Existing Farmer Login
+                      </button>
+                    </div>
+
+                    {/* Trust Badges */}
+                    <div class="pt-8 border-t border-slate-200/80 grid grid-cols-3 gap-4 text-center lg:text-left">
+                      <div>
+                        <div class="text-2xl font-bold text-agri-900 font-heading">100% User Owned</div>
+                        <div class="text-xs text-slate-500 font-medium">Your data, your farm</div>
+                      </div>
+                      <div>
+                        <div class="text-2xl font-bold text-agri-900 font-heading">Real-Time</div>
+                        <div class="text-xs text-slate-500 font-medium">Weather & IoT Engine</div>
+                      </div>
+                      <div>
+                        <div class="text-2xl font-bold text-agri-900 font-heading">Agronomy Guidance</div>
+                        <div class="text-xs text-slate-500 font-medium">Decision support</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column Interactive Preview Graphic */}
+                  <div class="lg:col-span-5 relative">
+                    <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 space-y-5">
+                      <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                        <div class="flex items-center gap-3">
+                          <div class="w-10 h-10 rounded-xl bg-agri-100 text-agri-800 flex items-center justify-center font-bold">
+                            <i data-lucide="sprout" class="w-6 h-6"></i>
+                          </div>
+                          <div>
+                            <div class="font-bold text-slate-900 text-base font-heading">Crop Status Live</div>
+                            <div class="text-xs text-slate-500">Selected Crop Management</div>
+                          </div>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold">
+                          Healthy
+                        </span>
+                      </div>
+
+                      {/* Mock Features Inside Card */}
+                      <div class="space-y-3">
+                        <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+                          <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                              <i data-lucide="droplet" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                              <div class="text-xs font-semibold text-slate-900">Irrigation Engine</div>
+                              <div class="text-[11px] text-slate-500">Soil moisture at 38%</div>
+                            </div>
+                          </div>
+                          <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">Optimal</span>
+                        </div>
+
+                        <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+                          <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                              <i data-lucide="cloud-sun" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                              <div class="text-xs font-semibold text-slate-900">Live Weather API</div>
+                              <div class="text-[11px] text-slate-500">Rain expected in 24h</div>
+                            </div>
+                          </div>
+                          <span class="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">24°C / 65%</span>
+                        </div>
+
+                        <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+                          <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+                              <i data-lucide="flask-conical" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                              <div class="text-xs font-semibold text-slate-900">Fertilizer Schedule</div>
+                              <div class="text-[11px] text-slate-500">Urea application due</div>
+                            </div>
+                          </div>
+                          <span class="text-xs font-bold text-slate-600 bg-slate-200 px-2 py-0.5 rounded">Planned</span>
+                        </div>
+                      </div>
+
+                      <div class="pt-2 text-center text-xs text-slate-400">
+                        Create your account to start managing your farm dynamically
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </section>
+
+            {/* Feature Cards Grid */}
+            <section class="py-16 bg-white border-t border-slate-200">
+              <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center max-w-3xl mx-auto mb-12">
+                  <h2 class="text-3xl font-bold text-slate-900 font-heading">
+                    All-in-One Agricultural Decision Platform
+                  </h2>
+                  <p class="text-slate-600 mt-2">
+                    Everything you need to monitor, optimize, and manage your farm operations in one place.
+                  </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200/80 space-y-3">
+                    <div class="w-12 h-12 rounded-xl bg-agri-100 text-agri-800 flex items-center justify-center font-bold">
+                      <i data-lucide="layout-dashboard" class="w-6 h-6"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900 font-heading">Crop Status Center</h3>
+                    <p class="text-sm text-slate-600 leading-relaxed">
+                      Unified view per crop containing Overview, Weather impacts, Irrigation calculations, Fertilizer tracking, and Risk alerts.
+                    </p>
+                  </div>
+
+                  <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200/80 space-y-3">
+                    <div class="w-12 h-12 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center font-bold">
+                      <i data-lucide="droplet" class="w-6 h-6"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900 font-heading">Irrigation & IoT Engine</h3>
+                    <p class="text-sm text-slate-600 leading-relaxed">
+                      Rule-based decision support combining soil moisture, temperature, and 24h rainfall forecast with IoT sensor integration.
+                    </p>
+                  </div>
+
+                  <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200/80 space-y-3">
+                    <div class="w-12 h-12 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
+                      <i data-lucide="trending-up" class="w-6 h-6"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900 font-heading">Finances & Market Search</h3>
+                    <p class="text-sm text-slate-600 leading-relaxed">
+                      Track revenue, expenses, and yield performance. Search crops and compare agronomic requirements side-by-side.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </main>
+
+          {/* Footer */}
+          <footer class="bg-slate-900 text-slate-400 py-8 border-t border-slate-800">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <FarmGuardLogo size="sm" className="text-white" />
+              <div class="text-xs text-slate-500">
+                © {new Date().getFullYear()} FarmGuard. Real production flow — Sign up to create your farm profile.
+              </div>
+            </div>
+          </footer>
+        </div>
+      );
+    };
+
+    // ==========================================
+    // 6. AUTHENTICATION: SIGNUP & LOGIN COMPONENTS
+    // ==========================================
+    const AuthSignup = ({ onNavigate, onLoginSuccess }) => {
+      const [formData, setFormData] = useState({
+        name: "",
+        email: "",
+        phone: "",
+        password: "",
+        confirmPassword: ""
+      });
+      const [error, setError] = useState("");
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        setError("");
+
+        if (!formData.name || !formData.email || !formData.password) {
+          setError("Please fill in all required fields.");
+          return;
+        }
+        if (formData.password !== formData.confirmPassword) {
+          setError("Passwords do not match.");
+          return;
+        }
+
+        const data = db.get();
+        if (data.users.some(u => u.email.toLowerCase() === formData.email.toLowerCase())) {
+          setError("An account with this email already exists. Please log in.");
+          return;
+        }
+
+        const newUser = {
+          id: "usr_" + Date.now(),
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password, // stored locally
+          createdAt: new Date().toISOString()
+        };
+
+        data.users.push(newUser);
+        data.session.currentUserId = newUser.id;
+        db.set(data);
+
+        onLoginSuccess(newUser, true); // True triggers first-time farm profile setup!
+      };
+
+      return (
+        <div class="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+          <div class="sm:mx-auto sm:w-full sm:max-w-md text-center space-y-3">
+            <div class="inline-block cursor-pointer" onClick={() => onNavigate("landing")}>
+              <FarmGuardLogo size="lg" />
+            </div>
+            <h2 class="text-2xl font-bold text-slate-900 font-heading">
+              Create your Farmer Account
+            </h2>
+            <p class="text-sm text-slate-600">
+              Start managing your farm, crops, and irrigation dynamically.
+            </p>
+          </div>
+
+          <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+            <div class="bg-white py-8 px-4 shadow-sm border border-slate-200 sm:rounded-2xl sm:px-10">
+              {error && (
+                <div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2">
+                  <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i>
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <form class="space-y-4" onSubmit={handleSubmit}>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Rajesh Sharma"
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-agri-800 text-sm"
+                    value={formData.name}
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Email Address *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="farmer@example.com"
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-agri-800 text-sm"
+                    value={formData.email}
+                    onChange={e => setFormData({ ...formData, email: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    placeholder="+91 9876543210"
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-agri-800 text-sm"
+                    value={formData.phone}
+                    onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Password *
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-agri-800 text-sm"
+                    value={formData.password}
+                    onChange={e => setFormData({ ...formData, password: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Confirm Password *
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-agri-800 text-sm"
+                    value={formData.confirmPassword}
+                    onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  class="w-full py-3 px-4 rounded-xl text-white font-semibold bg-agri-800 hover:bg-agri-900 transition-all shadow-md text-sm mt-2"
+                >
+                  Create Account & Setup Farm
+                </button>
+              </form>
+
+              <div class="mt-6 text-center text-xs text-slate-600">
+                Already have an account?{" "}
+                <button onClick={() => onNavigate("login")} class="font-bold text-agri-800 hover:underline">
+                  Log In Here
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const AuthLogin = ({ onNavigate, onLoginSuccess }) => {
+      const [formData, setFormData] = useState({ email: "", password: "" });
+      const [error, setError] = useState("");
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        setError("");
+
+        const data = db.get();
+        const user = data.users.find(u => u.email.toLowerCase() === formData.email.toLowerCase());
+
+        if (!user || user.password !== formData.password) {
+          setError("Invalid email or password.");
+          return;
+        }
+
+        data.session.currentUserId = user.id;
+        db.set(data);
+
+        // Check if user has completed farm setup
+        const hasFarm = data.farms.some(f => f.userId === user.id);
+        onLoginSuccess(user, !hasFarm);
+      };
+
+      return (
+        <div class="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+          <div class="sm:mx-auto sm:w-full sm:max-w-md text-center space-y-3">
+            <div class="inline-block cursor-pointer" onClick={() => onNavigate("landing")}>
+              <FarmGuardLogo size="lg" />
+            </div>
+            <h2 class="text-2xl font-bold text-slate-900 font-heading">
+              Farmer Login
+            </h2>
+            <p class="text-sm text-slate-600">
+              Access your personalized farm and crop status dashboard.
+            </p>
+          </div>
+
+          <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+            <div class="bg-white py-8 px-4 shadow-sm border border-slate-200 sm:rounded-2xl sm:px-10">
+              {error && (
+                <div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2">
+                  <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i>
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <form class="space-y-4" onSubmit={handleSubmit}>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="farmer@example.com"
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-agri-800 text-sm"
+                    value={formData.email}
+                    onChange={e => setFormData({ ...formData, email: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Password
+                    </label>
+                    <button type="button" onClick={() => alert("Password reset link sent to registered email.")} class="text-xs text-agri-800 hover:underline">
+                      Forgot Password?
+                    </button>
+                  </div>
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-agri-800 text-sm"
+                    value={formData.password}
+                    onChange={e => setFormData({ ...formData, password: e.target.value })}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  class="w-full py-3 px-4 rounded-xl text-white font-semibold bg-agri-800 hover:bg-agri-900 transition-all shadow-md text-sm mt-2"
+                >
+                  Log In to FarmGuard
+                </button>
+              </form>
+
+              <div class="mt-6 text-center text-xs text-slate-600">
+                Don't have a FarmGuard account?{" "}
+                <button onClick={() => onNavigate("signup")} class="font-bold text-agri-800 hover:underline">
+                  Create Account
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ==========================================
+    // 7. FIRST-TIME FARM PROFILE SETUP
+    // ==========================================
+    const FarmProfileSetup = ({ user, onComplete }) => {
+      const [farmData, setFarmData] = useState({
+        farmName: `${user.name.split(' ')[0]}'s Green Farm`,
+        farmArea: "5",
+        areaUnit: "Acres",
+        address: "Village Agripur",
+        district: "Pune",
+        state: "Maharashtra",
+        country: "India",
+        lat: 18.5204,
+        lng: 73.8567
+      });
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        const data = db.get();
+        
+        const newFarm = {
+          id: "farm_" + Date.now(),
+          userId: user.id,
+          ...farmData,
+          updatedAt: new Date().toISOString()
+        };
+
+        // Remove old farm if any
+        data.farms = data.farms.filter(f => f.userId !== user.id);
+        data.farms.push(newFarm);
+        db.set(data);
+
+        onComplete(newFarm);
+      };
+
+      return (
+        <div class="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 flex justify-center">
+          <div class="max-w-2xl w-full bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+            <div class="text-center space-y-2 border-b border-slate-100 pb-6">
+              <FarmGuardLogo size="md" className="justify-center" />
+              <h2 class="text-2xl font-bold text-slate-900 font-heading pt-2">
+                Setup Your Farm Profile
+              </h2>
+              <p class="text-sm text-slate-600">
+                Welcome, <span class="font-bold text-agri-900">{user.name}</span>! Provide your farm details so FarmGuard can customize weather, irrigation, and crop recommendations.
+              </p>
+            </div>
+
+            <form class="space-y-5" onSubmit={handleSubmit}>
+              <div class="space-y-4">
+                <h3 class="text-sm font-bold uppercase text-agri-800 tracking-wider flex items-center gap-2">
+                  <i data-lucide="user" class="w-4 h-4"></i> Farmer Contact Information
+                </h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200/80">
+                  <div>
+                    <span class="text-xs text-slate-500 font-medium">Name:</span>
+                    <div class="text-sm font-semibold text-slate-800">{user.name}</div>
+                  </div>
+                  <div>
+                    <span class="text-xs text-slate-500 font-medium">Email:</span>
+                    <div class="text-sm font-semibold text-slate-800">{user.email}</div>
+                  </div>
+                  <div class="sm:col-span-2">
+                    <span class="text-xs text-slate-500 font-medium">Phone:</span>
+                    <div class="text-sm font-semibold text-slate-800">{user.phone || "Not provided"}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="space-y-4 pt-2">
+                <h3 class="text-sm font-bold uppercase text-agri-800 tracking-wider flex items-center gap-2">
+                  <i data-lucide="map-pin" class="w-4 h-4"></i> Farm Location & Size
+                </h3>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div class="sm:col-span-2">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Farm Name *</label>
+                    <input
+                      type="text"
+                      required
+                      class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-agri-800 text-sm"
+                      value={farmData.farmName}
+                      onChange={e => setFarmData({ ...farmData, farmName: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Farm Area *</label>
+                    <div class="flex gap-2">
+                      <input
+                        type="number"
+                        step="0.1"
+                        required
+                        class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                        value={farmData.farmArea}
+                        onChange={e => setFarmData({ ...farmData, farmArea: e.target.value })}
+                      />
+                      <select 
+                        class="px-2 py-2.5 rounded-xl border border-slate-300 text-xs bg-white font-semibold"
+                        value={farmData.areaUnit}
+                        onChange={e => setFarmData({ ...farmData, areaUnit: e.target.value })}
+                      >
+                        <option>Acres</option>
+                        <option>Hectares</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Village / Address</label>
+                    <input
+                      type="text"
+                      class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                      value={farmData.address}
+                      onChange={e => setFarmData({ ...farmData, address: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">District / City *</label>
+                    <input
+                      type="text"
+                      required
+                      class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                      value={farmData.district}
+                      onChange={e => setFarmData({ ...farmData, district: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">State *</label>
+                    <input
+                      type="text"
+                      required
+                      class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                      value={farmData.state}
+                      onChange={e => setFarmData({ ...farmData, state: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Country *</label>
+                    <input
+                      type="text"
+                      required
+                      class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                      value={farmData.country}
+                      onChange={e => setFarmData({ ...farmData, country: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div class="pt-4 border-t border-slate-100 flex items-center justify-end">
+                <button
+                  type="submit"
+                  class="px-8 py-3 rounded-xl font-bold text-white bg-agri-800 hover:bg-agri-900 transition-all shadow-md text-sm flex items-center gap-2"
+                >
+                  Save Profile & Go to Dashboard
+                  <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      );
+    };
+
+    // ==========================================
+    // 8. ADD CROP MODAL
+    // ==========================================
+    const AddCropModal = ({ isOpen, onClose, onAddCrop }) => {
+      const [cropNameSelect, setCropNameSelect] = useState("Rice");
+      const [customCropName, setCustomCropName] = useState("");
+      const [formData, setFormData] = useState({
+        variety: "Hybrid",
+        area: "2",
+        plantingDate: new Date().toISOString().split('T')[0],
+        expectedHarvest: new Date(Date.now() + 110*86400000).toISOString().split('T')[0],
+        growthStage: "Vegetative",
+        soilType: "Clay Loam",
+        irrigationMethod: "Drip",
+        waterReq: "Medium",
+        notes: ""
+      });
+
+      if (!isOpen) return null;
+
+      const finalCropName = cropNameSelect === "Other" ? customCropName : cropNameSelect;
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!finalCropName) return;
+
+        onAddCrop({
+          cropName: finalCropName,
+          ...formData
+        });
+        onClose();
+      };
+
+      return (
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs custom-scrollbar overflow-y-auto">
+          <div class="bg-white rounded-3xl max-w-xl w-full p-6 shadow-xl border border-slate-200 my-8">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+              <h3 class="text-xl font-bold text-slate-900 font-heading flex items-center gap-2">
+                <i data-lucide="sprout" class="w-5 h-5 text-agri-800"></i> Add New Crop
+              </h3>
+              <button onClick={onClose} class="text-slate-400 hover:text-slate-600 p-1">
+                <i data-lucide="x" class="w-5 h-5"></i>
+              </button>
+            </div>
+
+            <form class="space-y-4 pt-4" onSubmit={handleSubmit}>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Crop Name *</label>
+                  <select
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white"
+                    value={cropNameSelect}
+                    onChange={e => setCropNameSelect(e.target.value)}
+                  >
+                    {CROP_DATABASE.map(c => (
+                      <option key={c.id} value={c.name.split(' ')[0]}>{c.name}</option>
+                    ))}
+                    <option value="Other">+ Custom Crop Name</option>
+                  </select>
+                </div>
+
+                {cropNameSelect === "Other" && (
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Enter Custom Crop *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Dragon Fruit"
+                      class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                      value={customCropName}
+                      onChange={e => setCustomCropName(e.target.value)}
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Crop Variety</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Basmati 370"
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                    value={formData.variety}
+                    onChange={e => setFormData({ ...formData, variety: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Cultivated Area (Acres) *</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    required
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                    value={formData.area}
+                    onChange={e => setFormData({ ...formData, area: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Planting Date *</label>
+                  <input
+                    type="date"
+                    required
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                    value={formData.plantingDate}
+                    onChange={e => setFormData({ ...formData, plantingDate: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Expected Harvest Date</label>
+                  <input
+                    type="date"
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                    value={formData.expectedHarvest}
+                    onChange={e => setFormData({ ...formData, expectedHarvest: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Current Growth Stage *</label>
+                  <select
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white"
+                    value={formData.growthStage}
+                    onChange={e => setFormData({ ...formData, growthStage: e.target.value })}
+                  >
+                    <option>Sowing / Germination</option>
+                    <option>Vegetative</option>
+                    <option>Flowering</option>
+                    <option>Yield Formation / Podding</option>
+                    <option>Ripening / Maturation</option>
+                    <option>Harvest Ready</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Soil Type</label>
+                  <select
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white"
+                    value={formData.soilType}
+                    onChange={e => setFormData({ ...formData, soilType: e.target.value })}
+                  >
+                    <option>Clay Loam</option>
+                    <option>Sandy Loam</option>
+                    <option>Alluvial Soil</option>
+                    <option>Black Cotton Soil</option>
+                    <option>Red Soil</option>
+                    <option>Heavy Clay</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Irrigation Method</label>
+                  <select
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white"
+                    value={formData.irrigationMethod}
+                    onChange={e => setFormData({ ...formData, irrigationMethod: e.target.value })}
+                  >
+                    <option>Drip</option>
+                    <option>Sprinkler</option>
+                    <option>Flood / Basin</option>
+                    <option>Rainfed</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Notes / Observations</label>
+                <textarea
+                  rows="2"
+                  placeholder="Optional field notes..."
+                  class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                  value={formData.notes}
+                  onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                ></textarea>
+              </div>
+
+              <div class="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  class="px-4 py-2.5 rounded-xl border border-slate-300 font-semibold text-slate-700 text-sm hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  class="px-6 py-2.5 rounded-xl font-bold text-white bg-agri-800 hover:bg-agri-900 transition-all text-sm shadow-sm"
+                >
+                  Save Crop
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      );
+    };
+
+    // ==========================================
+    // 9. DASHBOARD VIEW
+    // ==========================================
+    const DashboardView = ({ farm, crops, onNavigate, onSelectCropForStatus, onOpenAddCrop }) => {
+      const activeCropsCount = crops.length;
+
+      return (
+        <div class="space-y-8">
+          {/* Welcome Banner */}
+          <div class="bg-gradient-to-r from-agri-900 via-agri-800 to-agri-700 rounded-3xl p-6 sm:p-8 text-white shadow-lg relative overflow-hidden">
+            <div class="absolute right-0 top-0 translate-x-8 -translate-y-8 w-64 h-64 rounded-full bg-sun-500/10 blur-2xl pointer-events-none"></div>
+            <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div class="space-y-2">
+                <span class="px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-xs font-semibold text-agri-100 inline-block border border-white/10">
+                  {farm ? farm.farmName : "Farm Management"} Overview
+                </span>
+                <h1 class="text-2xl sm:text-3xl font-extrabold font-heading">
+                  Good Day, Farmer! 🌾
+                </h1>
+                <p class="text-sm text-agri-100 max-w-xl">
+                  {farm ? `${farm.farmArea} ${farm.areaUnit} located in ${farm.district}, ${farm.state}` : "Manage your crop status and daily irrigation requirements."}
+                </p>
+              </div>
+              <button
+                onClick={onOpenAddCrop}
+                class="px-6 py-3 rounded-xl font-bold bg-sun-500 text-slate-900 hover:bg-sun-400 transition-all shadow-md text-sm shrink-0 flex items-center justify-center gap-2"
+              >
+                <i data-lucide="plus-circle" class="w-4 h-4"></i> Add New Crop
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Metrics Grid */}
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
+              <div class="w-12 h-12 rounded-xl bg-agri-100 text-agri-800 flex items-center justify-center shrink-0">
+                <i data-lucide="sprout" class="w-6 h-6"></i>
+              </div>
+              <div>
+                <div class="text-2xl font-bold text-slate-900 font-heading">{activeCropsCount}</div>
+                <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Crops</div>
+              </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
+              <div class="w-12 h-12 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center shrink-0">
+                <i data-lucide="map" class="w-6 h-6"></i>
+              </div>
+              <div>
+                <div class="text-2xl font-bold text-slate-900 font-heading">{farm ? farm.farmArea : 0} {farm?.areaUnit || 'Acres'}</div>
+                <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Farm Area</div>
+              </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
+              <div class="w-12 h-12 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                <i data-lucide="cloud-sun" class="w-6 h-6"></i>
+              </div>
+              <div>
+                <div class="text-2xl font-bold text-slate-900 font-heading">28°C</div>
+                <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Farm Weather</div>
+              </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
+              <div class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+                <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+              </div>
+              <div>
+                <div class="text-2xl font-bold text-slate-900 font-heading">Healthy</div>
+                <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Overall Farm Status</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Active Crops Summary & Empty State */}
+          <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h2 class="text-lg font-bold text-slate-900 font-heading">My Active Crops Overview</h2>
+                <p class="text-xs text-slate-500">Click any crop card to open its full Crop Status page</p>
+              </div>
+              <button onClick={() => onNavigate("crops")} class="text-xs font-bold text-agri-800 hover:underline flex items-center gap-1">
+                View All Crops <i data-lucide="chevron-right" class="w-4 h-4"></i>
+              </button>
+            </div>
+
+            {crops.length === 0 ? (
+              <div class="text-center py-12 px-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 space-y-3">
+                <div class="w-12 h-12 rounded-full bg-agri-100 text-agri-800 flex items-center justify-center mx-auto">
+                  <i data-lucide="sprout" class="w-6 h-6"></i>
+                </div>
+                <h3 class="text-base font-bold text-slate-800">No crops added yet</h3>
+                <p class="text-xs text-slate-500 max-w-sm mx-auto">
+                  Add your first crop to enable weather tracking, irrigation decisions, fertilizer schedules, and alerts.
+                </p>
+                <button
+                  onClick={onOpenAddCrop}
+                  class="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-agri-800 hover:bg-agri-900 transition-all inline-flex items-center gap-1.5"
+                >
+                  <i data-lucide="plus" class="w-4 h-4"></i> Add Your First Crop
+                </button>
+              </div>
+            ) : (
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {crops.map(crop => (
+                  <div
+                    key={crop.id}
+                    onClick={() => onSelectCropForStatus(crop.id)}
+                    class="p-5 rounded-2xl border border-slate-200 bg-slate-50 hover:bg-white hover:border-agri-300 hover:shadow-md transition-all cursor-pointer space-y-3 group"
+                  >
+                    <div class="flex items-center justify-between">
+                      <span class="font-bold text-slate-900 text-base font-heading group-hover:text-agri-800 transition-colors">
+                        {crop.cropName}
+                      </span>
+                      <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                        {crop.growthStage}
+                      </span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 text-xs text-slate-600 pt-1 border-t border-slate-200/60">
+                      <div><span class="text-slate-400">Area:</span> <span class="font-semibold">{crop.area} Acres</span></div>
+                      <div><span class="text-slate-400">Variety:</span> <span class="font-semibold">{crop.variety || 'Standard'}</span></div>
+                      <div><span class="text-slate-400">Soil:</span> <span class="font-semibold">{crop.soilType || 'Loam'}</span></div>
+                      <div><span class="text-slate-400">Planting:</span> <span class="font-semibold">{crop.plantingDate}</span></div>
+                    </div>
+
+                    <div class="pt-2 flex items-center justify-between text-xs text-agri-800 font-semibold group-hover:translate-x-1 transition-transform">
+                      <span>Open Crop Status</span>
+                      <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Today's Overview Section */}
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Weather & Irrigation Overview */}
+            <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+              <h3 class="text-base font-bold text-slate-900 font-heading flex items-center gap-2">
+                <i data-lucide="cloud-rain" class="w-5 h-5 text-blue-600"></i> Today's Weather & Irrigation Summary
+              </h3>
+              <div class="p-4 bg-blue-50/60 rounded-2xl border border-blue-100 space-y-2">
+                <div class="flex items-center justify-between text-xs font-semibold text-blue-900">
+                  <span>Farm Location: {farm?.district || "Local Region"}</span>
+                  <span>Rain Chance: 15%</span>
+                </div>
+                <p class="text-xs text-blue-800 leading-relaxed">
+                  Moderate temperatures observed today (28°C). Minimal rain expected in the next 24 hours. Check individual crop status for customized watering schedules.
+                </p>
+              </div>
+            </div>
+
+            {/* Financial Summary Widget */}
+            <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+              <div class="flex items-center justify-between">
+                <h3 class="text-base font-bold text-slate-900 font-heading flex items-center gap-2">
+                  <i data-lucide="wallet" class="w-5 h-5 text-emerald-600"></i> Financial Quick View
+                </h3>
+                <button onClick={() => onNavigate("analytics")} class="text-xs font-bold text-agri-800 hover:underline">
+                  Manage Finances
+                </button>
+              </div>
+              <div class="grid grid-cols-3 gap-3 text-center">
+                <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                  <div class="text-[10px] text-emerald-700 font-bold uppercase">Total Revenue</div>
+                  <div class="text-sm font-bold text-emerald-900 font-heading">₹0</div>
+                </div>
+                <div class="p-3 bg-rose-50 rounded-xl border border-rose-100">
+                  <div class="text-[10px] text-rose-700 font-bold uppercase">Total Expenses</div>
+                  <div class="text-sm font-bold text-rose-900 font-heading">₹0</div>
+                </div>
+                <div class="p-3 bg-slate-100 rounded-xl border border-slate-200">
+                  <div class="text-[10px] text-slate-700 font-bold uppercase">Net Profit</div>
+                  <div class="text-sm font-bold text-slate-900 font-heading">₹0</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ==========================================
+    // 10. MY CROPS VIEW
+    // ==========================================
+    const MyCropsView = ({ crops, onSelectCropForStatus, onDeleteCrop, onOpenAddCrop }) => {
+      return (
+        <div class="space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-900 font-heading">My Crops</h1>
+              <p class="text-xs text-slate-500">Manage all cultivated crops on your farm</p>
+            </div>
+            <button
+              onClick={onOpenAddCrop}
+              class="px-5 py-2.5 rounded-xl font-bold text-white bg-agri-800 hover:bg-agri-900 transition-all text-xs flex items-center gap-2 shadow-sm self-start sm:self-auto"
+            >
+              <i data-lucide="plus" class="w-4 h-4"></i> Add Crop
+            </button>
+          </div>
+
+          {crops.length === 0 ? (
+            <div class="bg-white p-12 rounded-3xl border border-slate-200 text-center space-y-4 shadow-xs">
+              <div class="w-16 h-16 rounded-2xl bg-agri-100 text-agri-800 flex items-center justify-center mx-auto">
+                <i data-lucide="sprout" class="w-8 h-8"></i>
+              </div>
+              <h2 class="text-xl font-bold text-slate-900 font-heading">No crops added yet</h2>
+              <p class="text-sm text-slate-500 max-w-md mx-auto">
+                You haven't registered any crops. Click below to add your first crop (e.g. Rice, Tomato, Maize, Wheat).
+              </p>
+              <button
+                onClick={onOpenAddCrop}
+                class="px-6 py-3 rounded-xl font-bold text-white bg-agri-800 hover:bg-agri-900 transition-all text-sm shadow-md"
+              >
+                Add Your First Crop
+              </button>
+            </div>
+          ) : (
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {crops.map(crop => (
+                <div key={crop.id} class="bg-white rounded-3xl border border-slate-200 shadow-xs hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                  <div class="p-6 space-y-4">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-agri-100 text-agri-800 flex items-center justify-center font-bold">
+                          <i data-lucide="sprout" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                          <h3 class="font-bold text-slate-900 text-lg font-heading">{crop.cropName}</h3>
+                          <div class="text-xs text-slate-500">{crop.variety || 'Standard Variety'}</div>
+                        </div>
+                      </div>
+                      <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                        {crop.growthStage}
+                      </span>
+                    </div>
+
+                    <div class="space-y-2 pt-2 border-t border-slate-100 text-xs">
+                      <div class="flex justify-between text-slate-600">
+                        <span class="text-slate-400">Area:</span>
+                        <span class="font-bold text-slate-800">{crop.area} Acres</span>
+                      </div>
+                      <div class="flex justify-between text-slate-600">
+                        <span class="text-slate-400">Planting Date:</span>
+                        <span class="font-semibold text-slate-800">{crop.plantingDate}</span>
+                      </div>
+                      <div class="flex justify-between text-slate-600">
+                        <span class="text-slate-400">Expected Harvest:</span>
+                        <span class="font-semibold text-slate-800">{crop.expectedHarvest || 'Not set'}</span>
+                      </div>
+                      <div class="flex justify-between text-slate-600">
+                        <span class="text-slate-400">Soil Type:</span>
+                        <span class="font-semibold text-slate-800">{crop.soilType || 'Loam'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="bg-slate-50 px-6 py-3 border-t border-slate-200/80 flex items-center justify-between">
+                    <button
+                      onClick={() => onSelectCropForStatus(crop.id)}
+                      class="text-xs font-bold text-agri-800 hover:text-agri-900 flex items-center gap-1"
+                    >
+                      View Crop Status <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </button>
+                    <button
+                      onClick={() => onDeleteCrop(crop.id)}
+                      class="text-xs text-rose-600 hover:text-rose-800 p-1.5 rounded-lg hover:bg-rose-50"
+                      title="Delete Crop"
+                    >
+                      <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    // ==========================================
+    // 11. CROP STATUS: MAIN MANAGEMENT PAGE (5 TABS)
+    // ==========================================
+    const CropStatusView = ({ crop, farm, userId, onOpenAddCrop }) => {
+      const [activeTab, setActiveTab] = useState("overview");
+
+      // Fertilizer State
+      const [fertilizers, setFertilizers] = useState([]);
+      const [newFertilizer, setNewFertilizer] = useState({ name: "Urea (N)", dosage: "45 kg/acre", method: "Broadcast", status: "Planned" });
+      const [showFertilizerModal, setShowFertilizerModal] = useState(false);
+
+      // Sensor / IoT State
+      const [isSimulatedSensor, setIsSimulatedSensor] = useState(true);
+      const [sensorData, setSensorData] = useState({ moisture: 34, temp: 28, humidity: 62, rainSensor: "Dry" });
+
+      useEffect(() => {
+        if (crop) {
+          setFertilizers(db.getUserFertilizers(userId, crop.id));
+        }
+      }, [crop, userId]);
+
+      if (!crop) {
+        return (
+          <div class="bg-white p-12 rounded-3xl border border-slate-200 text-center space-y-4">
+            <div class="w-16 h-16 rounded-2xl bg-agri-100 text-agri-800 flex items-center justify-center mx-auto">
+              <i data-lucide="sprout" class="w-8 h-8"></i>
+            </div>
+            <h2 class="text-xl font-bold text-slate-900 font-heading">No Crop Selected</h2>
+            <p class="text-sm text-slate-500">
+              Please add a crop or select one from My Crops to view its detailed Crop Status.
+            </p>
+            <button
+              onClick={onOpenAddCrop}
+              class="px-6 py-3 rounded-xl font-bold text-white bg-agri-800 hover:bg-agri-900 text-sm shadow-md"
+            >
+              Add Crop Now
+            </button>
+          </div>
+        );
+      }
+
+      // Calculations
+      const plantingDateObj = new Date(crop.plantingDate);
+      const daysSincePlanting = Math.max(0, Math.floor((new Date() - plantingDateObj) / (1000 * 60 * 60 * 24)));
+
+      const irrigationDecision = calculateIrrigationDecision({
+        soilMoisture: sensorData.moisture,
+        recentRain: 0,
+        forecastRain: 2,
+        cropName: crop.cropName,
+        growthStage: crop.growthStage,
+        temperature: sensorData.temp
+      });
+
+      const handleAddFertilizer = (e) => {
+        e.preventDefault();
+        const data = db.get();
+        const rec = {
+          id: "fert_" + Date.now(),
+          cropId: crop.id,
+          userId,
+          date: new Date().toISOString().split('T')[0],
+          ...newFertilizer
+        };
+        data.fertilizers.push(rec);
+        db.set(data);
+        setFertilizers(db.getUserFertilizers(userId, crop.id));
+        setShowFertilizerModal(false);
+      };
+
+      const handleDeleteFertilizer = (id) => {
+        const data = db.get();
+        data.fertilizers = data.fertilizers.filter(f => f.id !== id);
+        db.set(data);
+        setFertilizers(db.getUserFertilizers(userId, crop.id));
+      };
+
+      return (
+        <div class="space-y-6">
+          {/* Header Summary Banner */}
+          <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-2xl bg-agri-100 text-agri-800 flex items-center justify-center font-bold shrink-0">
+                  <i data-lucide="sprout" class="w-7 h-7"></i>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h1 class="text-2xl font-bold text-slate-900 font-heading">{crop.cropName}</h1>
+                    <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                      {crop.growthStage}
+                    </span>
+                  </div>
+                  <p class="text-xs text-slate-500">
+                    Variety: <span class="font-semibold text-slate-700">{crop.variety || "Standard"}</span> • Area: <span class="font-semibold text-slate-700">{crop.area} Acres</span>
+                  </p>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-3 text-xs">
+                <div class="bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 text-center">
+                  <div class="text-slate-400 font-semibold">Days Active</div>
+                  <div class="font-bold text-slate-800">{daysSincePlanting} Days</div>
+                </div>
+                <div class="bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 text-center">
+                  <div class="text-slate-400 font-semibold">Target Harvest</div>
+                  <div class="font-bold text-slate-800">{crop.expectedHarvest || 'TBD'}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Navigation Tabs Inside Crop Status */}
+            <div class="flex overflow-x-auto gap-2 border-b border-slate-200/80 pb-2 custom-scrollbar">
+              {[
+                { id: "overview", label: "Overview", icon: "layout-grid" },
+                { id: "weather", label: "Weather Impact", icon: "cloud-sun" },
+                { id: "irrigation", label: "Irrigation & Sensors", icon: "droplets" },
+                { id: "fertilizer", label: "Fertilizer Schedule", icon: "flask-conical" },
+                { id: "alerts", label: "Risks & Alerts", icon: "bell" },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  class={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? "bg-agri-800 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  <i data-lucide={tab.icon} class="w-4 h-4"></i>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* TAB 1: OVERVIEW */}
+          {activeTab === "overview" && (
+            <div class="space-y-6">
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 text-center space-y-1">
+                  <span class="text-xs text-slate-400 font-semibold">Soil Condition</span>
+                  <div class="text-sm font-bold text-emerald-700">Optimal ({crop.soilType || 'Loam'})</div>
+                </div>
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 text-center space-y-1">
+                  <span class="text-xs text-slate-400 font-semibold">Water Condition</span>
+                  <div class="text-sm font-bold text-blue-700">Moisture 34%</div>
+                </div>
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 text-center space-y-1">
+                  <span class="text-xs text-slate-400 font-semibold">Weather Outlook</span>
+                  <div class="text-sm font-bold text-amber-700">Favorable (28°C)</div>
+                </div>
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 text-center space-y-1">
+                  <span class="text-xs text-slate-400 font-semibold">Monitoring Status</span>
+                  <div class="text-sm font-bold text-emerald-700">Healthy</div>
+                </div>
+              </div>
+
+              <div class="bg-white p-6 rounded-3xl border border-slate-200 space-y-4">
+                <h3 class="text-base font-bold text-slate-900 font-heading">Crop Details Specification</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+                  <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <span class="text-slate-400">Irrigation Method:</span>
+                    <div class="font-bold text-slate-800 text-sm">{crop.irrigationMethod || 'Drip'}</div>
+                  </div>
+                  <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <span class="text-slate-400">Water Requirement:</span>
+                    <div class="font-bold text-slate-800 text-sm">{crop.waterReq || 'Medium'}</div>
+                  </div>
+                  <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <span class="text-slate-400">Planting Date:</span>
+                    <div class="font-bold text-slate-800 text-sm">{crop.plantingDate}</div>
+                  </div>
+                </div>
+                <p class="text-[11px] text-slate-400 italic">
+                  Note: Status indicators are calculated based on registered environmental inputs and rule thresholds. Always inspect physical crop conditions.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: WEATHER IMPACT */}
+          {activeTab === "weather" && (
+            <div class="space-y-6">
+              <div class="bg-white p-6 rounded-3xl border border-slate-200 space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                  <div>
+                    <h3 class="text-base font-bold text-slate-900 font-heading flex items-center gap-2">
+                      <i data-lucide="cloud-sun" class="w-5 h-5 text-amber-500"></i> Location Weather Forecast
+                    </h3>
+                    <p class="text-xs text-slate-500">Farm Location: {farm?.district || "Local Region"}, {farm?.state || "India"}</p>
+                  </div>
+                  <span class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
+                    Live Weather Connected
+                  </span>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div class="p-4 bg-amber-50/60 rounded-2xl border border-amber-100 text-center">
+                    <span class="text-xs text-amber-800 font-semibold">Temperature</span>
+                    <div class="text-2xl font-bold text-amber-900 font-heading">28°C</div>
+                  </div>
+                  <div class="p-4 bg-blue-50/60 rounded-2xl border border-blue-100 text-center">
+                    <span class="text-xs text-blue-800 font-semibold">Humidity</span>
+                    <div class="text-2xl font-bold text-blue-900 font-heading">62%</div>
+                  </div>
+                  <div class="p-4 bg-sky-50/60 rounded-2xl border border-sky-100 text-center">
+                    <span class="text-xs text-sky-800 font-semibold">Rain Probability</span>
+                    <div class="text-2xl font-bold text-sky-900 font-heading">15%</div>
+                  </div>
+                  <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-center">
+                    <span class="text-xs text-slate-600 font-semibold">Wind Speed</span>
+                    <div class="text-2xl font-bold text-slate-900 font-heading">12 km/h</div>
+                  </div>
+                </div>
+
+                {/* Crop Advisory */}
+                <div class="p-4 bg-agri-50 rounded-2xl border border-agri-200 space-y-2">
+                  <h4 class="text-xs font-bold text-agri-900 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="info" class="w-4 h-4"></i> Crop Advisory for {crop.cropName}
+                  </h4>
+                  <p class="text-xs text-agri-800 leading-relaxed">
+                    Light winds and optimal humidity (62%) present favorable conditions for {crop.cropName} in its {crop.growthStage} stage. No severe storm or frost warnings active.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: IRRIGATION & SENSORS */}
+          {activeTab === "irrigation" && (
+            <div class="space-y-6">
+              {/* Irrigation Engine Recommendation */}
+              <div class="bg-white p-6 rounded-3xl border border-slate-200 space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                  <div>
+                    <h3 class="text-base font-bold text-slate-900 font-heading flex items-center gap-2">
+                      <i data-lucide="droplet" class="w-5 h-5 text-blue-600"></i> Irrigation Decision Engine
+                    </h3>
+                    <p class="text-xs text-slate-500">Transparent rule-based calculation for {crop.cropName}</p>
+                  </div>
+                </div>
+
+                <div class={`p-6 rounded-2xl border ${irrigationDecision.color} space-y-3`}>
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-white/80 flex items-center justify-center font-bold">
+                      <i data-lucide={irrigationDecision.icon} class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                      <div class="text-xs font-bold uppercase tracking-wider">Recommendation Result</div>
+                      <div class="text-xl font-extrabold font-heading">{irrigationDecision.status}</div>
+                    </div>
+                  </div>
+                  <p class="text-xs leading-relaxed opacity-95">
+                    {irrigationDecision.reason}
+                  </p>
+                </div>
+
+                <div class="space-y-3">
+                  <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Decision Factors Evaluated</h4>
+                  <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+                    {irrigationDecision.factors.map((f, idx) => (
+                      <div key={idx} class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                        <div class="text-slate-400 font-medium">{f.label}</div>
+                        <div class="font-bold text-slate-800 text-sm mt-0.5">{f.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* IoT Sensor Section */}
+              <div class="bg-white p-6 rounded-3xl border border-slate-200 space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                  <h3 class="text-base font-bold text-slate-900 font-heading flex items-center gap-2">
+                    <i data-lucide="cpu" class="w-5 h-5 text-purple-600"></i> IoT & Sensor Telemetry
+                  </h3>
+                  <button
+                    onClick={() => setIsSimulatedSensor(!isSimulatedSensor)}
+                    class="px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800"
+                  >
+                    {isSimulatedSensor ? "Mode: SIMULATED IOT" : "Mode: LIVE ESP32"}
+                  </button>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-center">
+                    <span class="text-xs text-slate-500 font-semibold">Soil Moisture</span>
+                    <div class="text-xl font-bold text-slate-900 font-heading">{sensorData.moisture}%</div>
+                  </div>
+                  <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-center">
+                    <span class="text-xs text-slate-500 font-semibold">Temperature</span>
+                    <div class="text-xl font-bold text-slate-900 font-heading">{sensorData.temp}°C</div>
+                  </div>
+                  <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-center">
+                    <span class="text-xs text-slate-500 font-semibold">Humidity</span>
+                    <div class="text-xl font-bold text-slate-900 font-heading">{sensorData.humidity}%</div>
+                  </div>
+                  <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-center">
+                    <span class="text-xs text-slate-500 font-semibold">Rain Sensor</span>
+                    <div class="text-xl font-bold text-slate-900 font-heading">{sensorData.rainSensor}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: FERTILIZER SCHEDULE */}
+          {activeTab === "fertilizer" && (
+            <div class="space-y-6">
+              <div class="bg-white p-6 rounded-3xl border border-slate-200 space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                  <div>
+                    <h3 class="text-base font-bold text-slate-900 font-heading flex items-center gap-2">
+                      <i data-lucide="flask-conical" class="w-5 h-5 text-purple-600"></i> Fertilizer Schedule & Records
+                    </h3>
+                    <p class="text-xs text-slate-500">Growth Stage: {crop.growthStage}</p>
+                  </div>
+                  <button
+                    onClick={() => setShowFertilizerModal(true)}
+                    class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-agri-800 hover:bg-agri-900"
+                  >
+                    + Add Record
+                  </button>
+                </div>
+
+                {fertilizers.length === 0 ? (
+                  <div class="text-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-xs text-slate-500">
+                    No fertilizer applications logged yet for this crop.
+                  </div>
+                ) : (
+                  <div class="space-y-3">
+                    {fertilizers.map(f => (
+                      <div key={f.id} class="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between text-xs">
+                        <div>
+                          <div class="font-bold text-slate-900 text-sm">{f.name}</div>
+                          <div class="text-slate-500">Dosage: {f.dosage} • Method: {f.method}</div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                          <span class="px-2.5 py-1 rounded-full font-bold bg-amber-100 text-amber-800">
+                            {f.status}
+                          </span>
+                          <button onClick={() => handleDeleteFertilizer(f.id)} class="text-rose-600 hover:bg-rose-50 p-1 rounded">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <p class="text-[11px] text-slate-400 border-t border-slate-100 pt-3">
+                  Disclaimer: Always consult local agricultural extension officers and base fertilizer quantities on official soil test reports.
+                </p>
+              </div>
+
+              {/* Add Fertilizer Modal */}
+              {showFertilizerModal && (
+                <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50">
+                  <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-4">
+                    <h4 class="font-bold text-lg font-heading">Add Fertilizer Record</h4>
+                    <form onSubmit={handleAddFertilizer} class="space-y-3 text-xs">
+                      <div>
+                        <label class="block font-bold text-slate-700 mb-1">Fertilizer Name / NPK</label>
+                        <input
+                          type="text"
+                          required
+                          class="w-full px-3 py-2 border rounded-xl"
+                          value={newFertilizer.name}
+                          onChange={e => setNewFertilizer({ ...newFertilizer, name: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label class="block font-bold text-slate-700 mb-1">Dosage / Quantity</label>
+                        <input
+                          type="text"
+                          required
+                          class="w-full px-3 py-2 border rounded-xl"
+                          value={newFertilizer.dosage}
+                          onChange={e => setNewFertilizer({ ...newFertilizer, dosage: e.target.value })}
+                        />
+                      </div>
+                      <div class="flex justify-end gap-2 pt-2">
+                        <button type="button" onClick={() => setShowFertilizerModal(false)} class="px-4 py-2 border rounded-xl font-semibold">
+                          Cancel
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-agri-800 text-white font-bold rounded-xl">
+                          Save Record
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 5: RISKS & ALERTS */}
+          {activeTab === "alerts" && (
+            <div class="bg-white p-6 rounded-3xl border border-slate-200 space-y-4">
+              <h3 class="text-base font-bold text-slate-900 font-heading flex items-center gap-2">
+                <i data-lucide="bell" class="w-5 h-5 text-amber-500"></i> Active Crop Risks & Alerts
+              </h3>
+              <div class="p-4 bg-amber-50 rounded-2xl border border-amber-200 flex items-start gap-3">
+                <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-700 shrink-0 mt-0.5"></i>
+                <div class="text-xs space-y-1">
+                  <div class="font-bold text-amber-900">Humidity Risk Monitoring</div>
+                  <p class="text-amber-800">
+                    High relative humidity (62%) detected. Inspect {crop.cropName} leaves periodically for fungal or blight symptoms.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    // ==========================================
+    // 12. MARKET & CROP SEARCH VIEW
+    // ==========================================
+    const MarketSearchView = () => {
+      const [searchQuery, setSearchQuery] = useState("");
+      const [selectedCropsToCompare, setSelectedCropsToCompare] = useState([]);
+
+      const filteredCrops = useMemo(() => {
+        if (!searchQuery) return CROP_DATABASE;
+        return CROP_DATABASE.filter(c => 
+          c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          c.risks.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      }, [searchQuery]);
+
+      const toggleCompare = (crop) => {
+        if (selectedCropsToCompare.some(c => c.id === crop.id)) {
+          setSelectedCropsToCompare(selectedCropsToCompare.filter(c => c.id !== crop.id));
+        } else {
+          if (selectedCropsToCompare.length >= 3) {
+            alert("You can compare up to 3 crops side by side.");
+            return;
+          }
+          setSelectedCropsToCompare([...selectedCropsToCompare, crop]);
+        }
+      };
+
+      return (
+        <div class="space-y-8">
+          <div>
+            <h1 class="text-2xl font-bold text-slate-900 font-heading">Market & Crop Search</h1>
+            <p class="text-xs text-slate-500">Explore market demand, price indicators, and factual crop requirements</p>
+          </div>
+
+          {/* Search Box */}
+          <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
+            <i data-lucide="search" class="w-5 h-5 text-slate-400"></i>
+            <input
+              type="text"
+              placeholder="Search crop by name (e.g. Tomato, Wheat, Cotton)..."
+              class="w-full text-sm focus:outline-none"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          {/* Side by Side Crop Comparison Section */}
+          {selectedCropsToCompare.length > 0 && (
+            <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                <h3 class="text-base font-bold text-slate-900 font-heading flex items-center gap-2">
+                  <i data-lucide="columns" class="w-5 h-5 text-agri-800"></i> Side-by-Side Crop Comparison
+                </h3>
+                <button onClick={() => setSelectedCropsToCompare([])} class="text-xs text-rose-600 font-bold hover:underline">
+                  Clear Comparison
+                </button>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr class="border-b border-slate-200 bg-slate-50">
+                      <th class="p-3 font-bold text-slate-700">Metric</th>
+                      {selectedCropsToCompare.map(c => (
+                        <th key={c.id} class="p-3 font-bold text-agri-900 font-heading text-sm">{c.name}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    <tr>
+                      <td class="p-3 font-semibold text-slate-500">Suitable Soil</td>
+                      {selectedCropsToCompare.map(c => <td key={c.id} class="p-3 text-slate-800">{c.soil}</td>)}
+                    </tr>
+                    <tr>
+                      <td class="p-3 font-semibold text-slate-500">Water Requirement</td>
+                      {selectedCropsToCompare.map(c => <td key={c.id} class="p-3 text-slate-800">{c.waterReq}</td>)}
+                    </tr>
+                    <tr>
+                      <td class="p-3 font-semibold text-slate-500">Growth Duration</td>
+                      {selectedCropsToCompare.map(c => <td key={c.id} class="p-3 text-slate-800">{c.duration}</td>)}
+                    </tr>
+                    <tr>
+                      <td class="p-3 font-semibold text-slate-500">Est. Cost / Acre</td>
+                      {selectedCropsToCompare.map(c => <td key={c.id} class="p-3 text-slate-800 font-bold">₹{c.estCostPerAcre}</td>)}
+                    </tr>
+                    <tr>
+                      <td class="p-3 font-semibold text-slate-500">Market Demand</td>
+                      {selectedCropsToCompare.map(c => <td key={c.id} class="p-3 text-slate-800 font-bold">{c.marketDemand}</td>)}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Crop Cards Grid */}
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredCrops.map(c => {
+              const isSelected = selectedCropsToCompare.some(item => item.id === c.id);
+              return (
+                <div key={c.id} class="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs hover:shadow-md transition-all space-y-4 flex flex-col justify-between">
+                  <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                      <h3 class="font-bold text-slate-900 text-lg font-heading">{c.name}</h3>
+                      <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
+                        ₹{c.avgMarketPrice} / {c.unit}
+                      </span>
+                    </div>
+
+                    <div class="space-y-1.5 text-xs text-slate-600">
+                      <div><span class="text-slate-400">Season:</span> <span class="font-semibold text-slate-800">{c.season}</span></div>
+                      <div><span class="text-slate-400">Duration:</span> <span class="font-semibold text-slate-800">{c.duration}</span></div>
+                      <div><span class="text-slate-400">Water Req:</span> <span class="font-semibold text-slate-800">{c.waterReq}</span></div>
+                      <div><span class="text-slate-400">Suitable Soil:</span> <span class="font-semibold text-slate-800">{c.soil}</span></div>
+                    </div>
+                  </div>
+
+                  <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+                    <button
+                      onClick={() => toggleCompare(c)}
+                      class={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-all ${
+                        isSelected 
+                          ? "bg-agri-800 text-white border-agri-800" 
+                          : "border-slate-300 text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      {isSelected ? "Selected for Compare" : "+ Compare Crop"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    };
+
+    // ==========================================
+    // 13. FARMER HELP (AI & KNOWLEDGE ASSISTANT)
+    // ==========================================
+    const FarmerHelpView = () => {
+      const [question, setQuestion] = useState("");
+      const [answer, setAnswer] = useState(null);
+
+      const FAQ_LIST = [
+        { q: "How to manage early blight in tomatoes?", a: "Early blight is caused by Alternaria solani. Ensure proper spacing for airflow, avoid overhead watering, remove affected lower leaves, and consult local extension officers for approved fungicide sprays." },
+        { q: "What is the best irrigation timing for wheat?", a: "Crown root initiation (CRI) at 21 days after sowing is the most critical stage. Subsequent irrigations are recommended at tillering, flowering, and grain filling stages." },
+        { q: "How to test soil health before planting?", a: "Collect soil samples from multiple field spots at 15-30cm depth. Submit samples to a government/certified soil testing lab to analyze NPK, pH, and organic carbon levels." }
+      ];
+
+      const handleAsk = (e) => {
+        e.preventDefault();
+        if (!question) return;
+
+        setAnswer({
+          q: question,
+          overview: "Based on agronomic principles for your query:",
+          checks: ["Check leaf color and moisture levels", "Verify fertilizer application history", "Ensure field drainage is clear"],
+          steps: ["Inspect crops physically in the morning", "Consult local Krishi Vigyan Kendra (KVK) if symptoms persist"],
+          disclaimer: "General advisory only. Verify with local agricultural experts."
+        });
+      };
+
+      return (
+        <div class="space-y-8 max-w-4xl mx-auto">
+          <div>
+            <h1 class="text-2xl font-bold text-slate-900 font-heading">Farmer Help Assistant</h1>
+            <p class="text-xs text-slate-500">Ask farming questions regarding crop care, pest monitoring, and agronomy</p>
+          </div>
+
+          <form onSubmit={handleAsk} class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3">
+            <i data-lucide="help-circle" class="w-5 h-5 text-agri-800"></i>
+            <input
+              type="text"
+              placeholder="Ask your farming question (e.g. How to prevent pest attack?)..."
+              class="w-full text-sm focus:outline-none"
+              value={question}
+              onChange={e => setQuestion(e.target.value)}
+            />
+            <button type="submit" class="px-5 py-2.5 rounded-xl bg-agri-800 text-white font-bold text-xs shrink-0 hover:bg-agri-900">
+              Ask Question
+            </button>
+          </form>
+
+          {answer && (
+            <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+              <h3 class="font-bold text-slate-900 text-base font-heading border-b border-slate-100 pb-3">
+                Q: {answer.q}
+              </h3>
+              <p class="text-xs text-slate-600">{answer.overview}</p>
+              <div class="space-y-2">
+                <div class="text-xs font-bold text-slate-700">Suggested Observations:</div>
+                <ul class="list-disc list-inside text-xs text-slate-600 space-y-1">
+                  {answer.checks.map((c, i) => <li key={i}>{c}</li>)}
+                </ul>
+              </div>
+              <p class="text-[11px] text-slate-400 italic pt-2 border-t border-slate-100">
+                {answer.disclaimer}
+              </p>
+            </div>
+          )}
+
+          {/* Preset FAQ list */}
+          <div class="bg-white p-6 rounded-3xl border border-slate-200 space-y-4">
+            <h3 class="font-bold text-slate-900 text-base font-heading">Frequently Asked Agronomy Questions</h3>
+            <div class="space-y-3">
+              {FAQ_LIST.map((item, idx) => (
+                <div key={idx} class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5">
+                  <div class="font-bold text-slate-900 text-xs">{item.q}</div>
+                  <p class="text-xs text-slate-600 leading-relaxed">{item.a}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ==========================================
+    // 14. ANALYTICS & FINANCIAL MANAGEMENT
+    // ==========================================
+    const AnalyticsView = ({ userId, crops }) => {
+      const [financials, setFinancials] = useState([]);
+      const [showModal, setShowModal] = useState(false);
+      const [recData, setRecData] = useState({
+        type: "expense",
+        category: "Seeds",
+        amount: "5000",
+        cropId: crops[0]?.id || "",
+        date: new Date().toISOString().split('T')[0]
+      });
+
+      useEffect(() => {
+        setFinancials(db.getUserFinancials(userId));
+      }, [userId]);
+
+      const handleAddRecord = (e) => {
+        e.preventDefault();
+        const data = db.get();
+        const newRec = {
+          id: "fin_" + Date.now(),
+          userId,
+          ...recData,
+          amount: parseFloat(recData.amount) || 0
+        };
+        data.financials.push(newRec);
+        db.set(data);
+        setFinancials(db.getUserFinancials(userId));
+        setShowModal(false);
+      };
+
+      const totalRevenue = financials.filter(f => f.type === "revenue").reduce((acc, f) => acc + f.amount, 0);
+      const totalExpenses = financials.filter(f => f.type === "expense").reduce((acc, f) => acc + f.amount, 0);
+      const netProfit = totalRevenue - totalExpenses;
+
+      return (
+        <div class="space-y-8">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-900 font-heading">Analytics & Financials</h1>
+              <p class="text-xs text-slate-500">Track crop expenses, farm revenues, and yield profitability</p>
+            </div>
+            <button
+              onClick={() => setShowModal(true)}
+              class="px-5 py-2.5 rounded-xl font-bold text-white bg-agri-800 hover:bg-agri-900 text-xs shadow-sm self-start sm:self-auto"
+            >
+              + Add Financial Record
+            </button>
+          </div>
+
+          {/* Overview Stat Cards */}
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 text-center">
+              <span class="text-xs text-emerald-700 font-bold uppercase">Total Revenue</span>
+              <div class="text-2xl font-bold text-emerald-900 font-heading">₹{totalRevenue.toLocaleString()}</div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 text-center">
+              <span class="text-xs text-rose-700 font-bold uppercase">Total Expenses</span>
+              <div class="text-2xl font-bold text-rose-900 font-heading">₹{totalExpenses.toLocaleString()}</div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 text-center">
+              <span class="text-xs text-slate-700 font-bold uppercase">Net Profit / Loss</span>
+              <div class={`text-2xl font-bold font-heading ${netProfit >= 0 ? 'text-slate-900' : 'text-rose-600'}`}>
+                ₹{netProfit.toLocaleString()}
+              </div>
+            </div>
+          </div>
+
+          {/* Record Table */}
+          <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+            <h3 class="font-bold text-slate-900 text-base font-heading">Financial Ledger</h3>
+            {financials.length === 0 ? (
+              <div class="text-center py-8 bg-slate-50 rounded-2xl border border-dashed text-xs text-slate-500">
+                No financial records created yet. Add income or expenses to visualize analytics.
+              </div>
+            ) : (
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr class="border-b border-slate-200 bg-slate-50">
+                      <th class="p-3 font-bold text-slate-700">Date</th>
+                      <th class="p-3 font-bold text-slate-700">Type</th>
+                      <th class="p-3 font-bold text-slate-700">Category</th>
+                      <th class="p-3 font-bold text-slate-700">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    {financials.map(f => (
+                      <tr key={f.id}>
+                        <td class="p-3 text-slate-600">{f.date}</td>
+                        <td class="p-3">
+                          <span class={`px-2 py-0.5 rounded font-bold ${f.type === 'revenue' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                            {f.type}
+                          </span>
+                        </td>
+                        <td class="p-3 text-slate-800 font-semibold">{f.category}</td>
+                        <td class="p-3 font-bold text-slate-900">₹{f.amount}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Modal */}
+          {showModal && (
+            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50">
+              <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-4">
+                <h4 class="font-bold text-lg font-heading">Add Financial Entry</h4>
+                <form onSubmit={handleAddRecord} class="space-y-3 text-xs">
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">Entry Type</label>
+                    <select class="w-full px-3 py-2 border rounded-xl" value={recData.type} onChange={e => setRecData({ ...recData, type: e.target.value })}>
+                      <option value="expense">Expense</option>
+                      <option value="revenue">Revenue</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">Category</label>
+                    <input type="text" required class="w-full px-3 py-2 border rounded-xl" value={recData.category} onChange={e => setRecData({ ...recData, category: e.target.value })} />
+                  </div>
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">Amount (₹)</label>
+                    <input type="number" required class="w-full px-3 py-2 border rounded-xl" value={recData.amount} onChange={e => setRecData({ ...recData, amount: e.target.value })} />
+                  </div>
+                  <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onClick={() => setShowModal(false)} class="px-4 py-2 border rounded-xl">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-agri-800 text-white font-bold rounded-xl">Save Record</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    // ==========================================
+    // 15. ALERTS & SETTINGS VIEWS
+    // ==========================================
+    const AlertsView = () => (
+      <div class="space-y-6">
+        <h1 class="text-2xl font-bold text-slate-900 font-heading">Farm Alerts</h1>
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 space-y-3">
+          <div class="p-4 bg-amber-50 rounded-2xl border border-amber-200 flex items-center justify-between text-xs">
+            <div class="flex items-center gap-3">
+              <i data-lucide="bell" class="w-5 h-5 text-amber-700"></i>
+              <div>
+                <div class="font-bold text-slate-900">Weather Notice</div>
+                <div class="text-slate-600">Favorable temperature conditions across farm plots</div>
+              </div>
+            </div>
+            <span class="text-slate-400">Today</span>
+          </div>
+        </div>
+      </div>
+    );
+
+    const SettingsView = ({ user, farm, onLogout }) => (
+      <div class="space-y-6 max-w-2xl">
+        <h1 class="text-2xl font-bold text-slate-900 font-heading">Settings & Profile</h1>
+        
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 space-y-4">
+          <h3 class="font-bold text-slate-900 text-base font-heading">Farmer Account</h3>
+          <div class="text-xs space-y-2">
+            <div><span class="text-slate-400">Name:</span> <span class="font-bold text-slate-800">{user?.name}</span></div>
+            <div><span class="text-slate-400">Email:</span> <span class="font-bold text-slate-800">{user?.email}</span></div>
+            <div><span class="text-slate-400">Phone:</span> <span class="font-bold text-slate-800">{user?.phone || 'N/A'}</span></div>
+          </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 space-y-4">
+          <h3 class="font-bold text-slate-900 text-base font-heading">Farm Information</h3>
+          <div class="text-xs space-y-2">
+            <div><span class="text-slate-400">Farm Name:</span> <span class="font-bold text-slate-800">{farm?.farmName}</span></div>
+            <div><span class="text-slate-400">Area:</span> <span class="font-bold text-slate-800">{farm?.farmArea} {farm?.areaUnit}</span></div>
+            <div><span class="text-slate-400">Location:</span> <span class="font-bold text-slate-800">{farm?.district}, {farm?.state}</span></div>
+          </div>
+        </div>
+
+        <div class="pt-4 border-t border-slate-200">
+          <button
+            onClick={onLogout}
+            class="px-6 py-3 rounded-xl font-bold text-rose-600 bg-rose-50 border border-rose-200 hover:bg-rose-100 transition-all text-xs"
+          >
+            Log Out of FarmGuard
+          </button>
+        </div>
+      </div>
+    );
+
+    // ==========================================
+    // 16. MAIN APP SHELL & ROUTER
+    // ==========================================
+    const App = () => {
+      const [currentUser, setCurrentUser] = useState(null);
+      const [userFarm, setUserFarm] = useState(null);
+      const [userCrops, setUserCrops] = useState([]);
+      const [view, setView] = useState("landing"); // landing, signup, login, setup, dashboard, crops, status, market, help, analytics, alerts, settings
+      const [selectedCropIdForStatus, setSelectedCropIdForStatus] = useState(null);
+      const [isAddCropOpen, setIsAddCropOpen] = useState(false);
+      const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+      // Initialize session on mount
+      useEffect(() => {
+        const u = db.getCurrentUser();
+        if (u) {
+          setCurrentUser(u);
+          const f = db.getUserFarm(u.id);
+          setUserFarm(f);
+          setUserCrops(db.getUserCrops(u.id));
+          if (!f) setView("setup");
+          else setView("dashboard");
+        }
+      }, []);
+
+      // Re-initialize Lucide Icons whenever view changes
+      useEffect(() => {
+        if (window.lucide) {
+          window.lucide.createIcons();
+        }
+      }, [view, userCrops, selectedCropIdForStatus]);
+
+      const handleLoginSuccess = (user, needsSetup) => {
+        setCurrentUser(user);
+        const f = db.getUserFarm(user.id);
+        setUserFarm(f);
+        setUserCrops(db.getUserCrops(user.id));
+
+        if (needsSetup) {
+          setView("setup");
+        } else {
+          setView("dashboard");
+        }
+      };
+
+      const handleFarmSetupComplete = (farm) => {
+        setUserFarm(farm);
+        setView("dashboard");
+      };
+
+      const handleAddCrop = (cropData) => {
+        const data = db.get();
+        const newCrop = {
+          id: "crop_" + Date.now(),
+          userId: currentUser.id,
+          ...cropData,
+          createdAt: new Date().toISOString()
+        };
+        data.crops.push(newCrop);
+        db.set(data);
+
+        const updated = db.getUserCrops(currentUser.id);
+        setUserCrops(updated);
+        setSelectedCropIdForStatus(newCrop.id);
+      };
+
+      const handleDeleteCrop = (cropId) => {
+        if (!confirm("Are you sure you want to delete this crop record?")) return;
+        const data = db.get();
+        data.crops = data.crops.filter(c => c.id !== cropId);
+        db.set(data);
+        setUserCrops(db.getUserCrops(currentUser.id));
+      };
+
+      const handleLogout = () => {
+        const data = db.get();
+        data.session.currentUserId = null;
+        db.set(data);
+        setCurrentUser(null);
+        setUserFarm(null);
+        setUserCrops([]);
+        setView("landing");
+      };
+
+      const handleSelectCropForStatus = (cropId) => {
+        setSelectedCropIdForStatus(cropId);
+        setView("status");
+      };
+
+      // Selected Crop Object
+      const activeCropForStatus = useMemo(() => {
+        if (selectedCropIdForStatus) {
+          return userCrops.find(c => c.id === selectedCropIdForStatus) || userCrops[0] || null;
+        }
+        return userCrops[0] || null;
+      }, [userCrops, selectedCropIdForStatus]);
+
+      // Unauthenticated views
+      if (view === "landing") return <LandingPage onNavigate={setView} />;
+      if (view === "signup") return <AuthSignup onNavigate={setView} onLoginSuccess={handleLoginSuccess} />;
+      if (view === "login") return <AuthLogin onNavigate={setView} onLoginSuccess={handleLoginSuccess} />;
+      if (view === "setup") return <FarmProfileSetup user={currentUser} onComplete={handleFarmSetupComplete} />;
+
+      // Main Authenticated Dashboard Layout
+      const NAV_ITEMS = [
+        { id: "dashboard", label: "Dashboard", icon: "layout-dashboard" },
+        { id: "crops", label: "My Crops", icon: "sprout" },
+        { id: "status", label: "Crop Status", icon: "activity" },
+        { id: "market", label: "Market & Crop Search", icon: "trending-up" },
+        { id: "help", label: "Farmer Help", icon: "help-circle" },
+        { id: "analytics", label: "Analytics", icon: "pie-chart" },
+        { id: "alerts", label: "Alerts", icon: "bell" },
+        { id: "settings", label: "Settings", icon: "settings" },
+      ];
+
+      return (
+        <div class="min-h-screen bg-slate-50 flex">
+          {/* Desktop Left Sidebar */}
+          <aside class="hidden lg:flex w-64 bg-white border-r border-slate-200 flex-col justify-between p-6 shrink-0 sticky top-0 h-screen">
+            <div class="space-y-6">
+              <FarmGuardLogo size="md" />
+
+              {/* Farm Badge */}
+              <div class="p-3 bg-agri-50 rounded-2xl border border-agri-100 flex items-center gap-3">
+                <div class="w-8 h-8 rounded-xl bg-agri-800 text-white flex items-center justify-center font-bold text-xs">
+                  <i data-lucide="map-pin" class="w-4 h-4"></i>
+                </div>
+                <div class="truncate text-xs">
+                  <div class="font-bold text-slate-900 truncate">{userFarm?.farmName || "My Farm"}</div>
+                  <div class="text-slate-500 text-[10px]">{userFarm?.district || "Location"}</div>
+                </div>
+              </div>
+
+              {/* Main Nav */}
+              <nav class="space-y-1">
+                {NAV_ITEMS.map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => setView(item.id)}
+                    class={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all ${
+                      view === item.id
+                        ? "bg-agri-800 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <i data-lucide={item.icon} class="w-4 h-4"></i>
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </nav>
+            </div>
+
+            {/* User Profile Footer */}
+            <div class="pt-4 border-t border-slate-100 flex items-center justify-between">
+              <div class="truncate text-xs">
+                <div class="font-bold text-slate-900 truncate">{currentUser.name}</div>
+                <div class="text-slate-400 text-[10px] truncate">{currentUser.email}</div>
+              </div>
+              <button onClick={handleLogout} class="text-slate-400 hover:text-rose-600 p-1.5" title="Log out">
+                <i data-lucide="log-out" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </aside>
+
+          {/* Main Area */}
+          <div class="flex-1 flex flex-col min-w-0">
+            {/* Mobile Header */}
+            <header class="lg:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-0 z-40">
+              <FarmGuardLogo size="sm" />
+              <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} class="p-2 text-slate-700">
+                <i data-lucide={mobileMenuOpen ? "x" : "menu"} class="w-6 h-6"></i>
+              </button>
+            </header>
+
+            {/* Mobile Navigation Drawer */}
+            {mobileMenuOpen && (
+              <div class="lg:hidden bg-white border-b border-slate-200 px-4 py-4 space-y-2 shadow-lg">
+                {NAV_ITEMS.map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => { setView(item.id); setMobileMenuOpen(false); }}
+                    class={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-xs ${
+                      view === item.id ? "bg-agri-800 text-white" : "text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <i data-lucide={item.icon} class="w-4 h-4"></i>
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Page View Container */}
+            <main class="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+              {view === "dashboard" && (
+                <DashboardView
+                  farm={userFarm}
+                  crops={userCrops}
+                  onNavigate={setView}
+                  onSelectCropForStatus={handleSelectCropForStatus}
+                  onOpenAddCrop={() => setIsAddCropOpen(true)}
+                />
+              )}
+
+              {view === "crops" && (
+                <MyCropsView
+                  crops={userCrops}
+                  onSelectCropForStatus={handleSelectCropForStatus}
+                  onDeleteCrop={handleDeleteCrop}
+                  onOpenAddCrop={() => setIsAddCropOpen(true)}
+                />
+              )}
+
+              {view === "status" && (
+                <CropStatusView
+                  crop={activeCropForStatus}
+                  farm={userFarm}
+                  userId={currentUser.id}
+                  onOpenAddCrop={() => setIsAddCropOpen(true)}
+                />
+              )}
+
+              {view === "market" && <MarketSearchView />}
+              {view === "help" && <FarmerHelpView />}
+              {view === "analytics" && <AnalyticsView userId={currentUser.id} crops={userCrops} />}
+              {view === "alerts" && <AlertsView />}
+              {view === "settings" && <SettingsView user={currentUser} farm={userFarm} onLogout={handleLogout} />}
+            </main>
+          </div>
+
+          {/* Add Crop Global Modal */}
+          <AddCropModal
+            isOpen={isAddCropOpen}
+            onClose={() => setIsAddCropOpen(false)}
+            onAddCrop={handleAddCrop}
+          />
+        </div>
+      );
+    };
+
+    // Render App
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
